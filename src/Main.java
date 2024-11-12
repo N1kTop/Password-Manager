@@ -91,7 +91,8 @@ public class Main {
     }
 
     private static void addNewPassword() {
-        // finish
+        String password = requestPasswordInput();
+        newPasswordSave(password);
     }
 
     private static void menageServicePassword(int index) {
@@ -125,10 +126,22 @@ public class Main {
     }
 
     private static void updatePassword(int index) {
-        String newPasswordString = input("\nNew Password: ");
+
+        String newPasswordString = requestPasswordInput();
         CSVfileRequiresRewriting = true;
         // finish
         records.get(index).set(2, newPasswordString);
+    }
+
+    private static String requestPasswordInput() {
+        System.out.println("""
+                (1) Generate Strong Password
+                (2) Enter Password
+                """);
+        int choice = inputInt("Enter number: ", 1, 2);
+
+        if (choice == 1) return generateStrongPassword();
+        return input("\nNew Password: ");
     }
 
     private static void printAllAccounts() {
@@ -198,11 +211,7 @@ public class Main {
             int choice = inputInt("Enter number: ", 1, 4);
 
             switch (choice) {
-                case 1 -> {
-                    String newUsername = input("New Username: ");
-                    records.get(0).set(1, newUsername);
-                    renameCSVfile(accountUsername + ".csv", newUsername + ".csv");
-                }
+                case 1 -> usernameChange();
                 case 2 -> passwordChange();
                 case 3 -> deleteAccount();
                 case 4 -> {return;}
@@ -221,8 +230,22 @@ public class Main {
         }
     }
 
+    private static void usernameChange() {
+        String newUsername = input("New Username: ");
+        records.get(0).set(1, newUsername);
+
+        renameCSVfile(accountUsername + ".csv", newUsername + ".csv");
+        CSVfileRequiresRewriting = true;
+    }
+
     private static void passwordChange() {
-        // finish
+        String newPassword = input("New Password: ");
+        String salt = getUserSalt();
+        byte[] hashedPassword = hashPassword(newPassword, salt);
+        String base64StringPassword = byteArrayToBase64String(hashedPassword);
+
+        records.get(0).set(1, base64StringPassword);
+        CSVfileRequiresRewriting = true;
     }
     
     private static void deleteAccount() {
@@ -283,7 +306,11 @@ public class Main {
             return;
         }
 
-        createCSV(username, password, generateSalt());
+        String salt = generateSalt();
+        byte[] hashedPassword = hashPassword(password, salt);
+        String base64StringPassword = byteArrayToBase64String(hashedPassword);
+
+        createCSV(username, base64StringPassword, salt);
 
     }
 
@@ -597,29 +624,15 @@ public class Main {
         String service = input("Service website: ");
         String username = input("Service username: ");
         String salt = generateSalt();
-        byte[] hashedPassword = hashPassword(password, salt);
-        String base64StringPassword = byteArrayToBase64String(hashedPassword);
+        // finish
 
         List<String> newRecord = new ArrayList<>();
         newRecord.add(service);
         newRecord.add(username);
-        newRecord.add(base64StringPassword);
+        newRecord.add(password);
         newRecord.add(salt);
         records.add(newRecord);
         CSVfileRequiresRewriting = true;
-        // finish
-
-        try (FileWriter fileWriter = new FileWriter(accountUsername + ".csv", true);
-             PrintWriter printWriter = new PrintWriter(fileWriter)) {
-
-            // Append the line to the file
-            printWriter.println(service + "," + username + "," + password + "," + salt);
-
-            System.out.println("\nPassword added\n");
-        } catch (IOException e) {
-            System.out.println("An error occurred while updating password.");
-            e.printStackTrace();
-        }
     }
 
     private static int randomNum(int lowerbound, int upperbound) {
