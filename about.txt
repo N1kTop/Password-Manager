@@ -1,0 +1,6 @@
+PasswordManager
+Author: NikTop
+Version: 1.0
+Date: 16/10/2024
+
+This program is a password manager that can generate and store passwords for different services.
