@@ -22,13 +22,13 @@ public class Main {
 
     private static List<String> wordsDict;
 
-    public static void main(String[] args) throws NoSuchAlgorithmException {
+    public static void main(String[] args) {
         loadDictionary();
         mainMenu();
 
     }
 
-    private static void mainMenu() throws NoSuchAlgorithmException {
+    private static void mainMenu() {
 
         while (true) {
             System.out.println("""
@@ -240,7 +240,7 @@ public class Main {
         System.exit(0);
     }
 
-    private static void logIn() throws NoSuchAlgorithmException {
+    private static void logIn() {
         String username = input("Username: ");
         String inputPassword = input("Password: ");
         if (!loadRecords(username + ".csv")) return;
@@ -349,15 +349,27 @@ public class Main {
         System.out.print("\n");
     }
 
-    private static byte[] hashPassword(String passwordString, String salt) throws NoSuchAlgorithmException {
+    private static byte[] hashPassword(String passwordString, String salt) {
         passwordString += salt;
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        return digest.digest(passwordString.getBytes(StandardCharsets.UTF_16));
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return digest.digest(passwordString.getBytes(StandardCharsets.UTF_16));
+        }
+        catch (NoSuchAlgorithmException e) {
+            System.out.println("Error has occurred");
+            return new byte[0];
+        }
     }
 
-    private static byte[] hashPassword(String passwordString) throws NoSuchAlgorithmException {
+    private static byte[] hashPassword(String passwordString) {
+        try {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         return digest.digest(passwordString.getBytes(StandardCharsets.UTF_16));
+        }
+        catch (NoSuchAlgorithmException e) {
+            System.out.println("Error has occurred");
+            return new byte[0];
+        }
     }
 
     private static String byteToString(byte[] b) {
@@ -585,10 +597,13 @@ public class Main {
         String service = input("Service website: ");
         String username = input("Service username: ");
         String salt = generateSalt();
+        byte[] hashedPassword = hashPassword(password, salt);
+        String base64StringPassword = byteArrayToBase64String(hashedPassword);
+
         List<String> newRecord = new ArrayList<>();
         newRecord.add(service);
         newRecord.add(username);
-        newRecord.add(password);
+        newRecord.add(base64StringPassword);
         newRecord.add(salt);
         records.add(newRecord);
         CSVfileRequiresRewriting = true;
