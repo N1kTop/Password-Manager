@@ -204,7 +204,12 @@ public class Main {
     private static void menageServicePassword(int index) {
         System.out.println(getRecordsService(index));
         System.out.println(getRecordsUsername(index));
-        System.out.println(getRecordsPassword(index));
+        try {
+            System.out.println(decrypt(getMasterPassword(), getRecordsPassword(index)));
+        }
+        catch (Exception e) {
+            System.out.println("---Could not view password---");
+        }
 
         System.out.println("""
                 
@@ -215,7 +220,7 @@ public class Main {
                 (5) Back
                 """);
 
-        int choice = inputInt("Enter number: ", 1, 4);
+        int choice = inputInt("Enter number: ", 1, 5);
 
         switch (choice) {
             case 1 -> {
@@ -228,8 +233,12 @@ public class Main {
             }
             case 2 -> updatePassword(index);
             case 3 -> setRecordsUsername(index, "\nNew Username: ");
-            case 4 -> removeRecord(index);
+            case 4 -> removeService(index);
         }
+    }
+
+    private static void removeService(int index) {
+        if (inputBool("Are you sure you want to delete this password: ")) removeRecord(index);
     }
 
     private static void updatePassword(int index) {
@@ -255,14 +264,18 @@ public class Main {
                 """);
         int choice = inputInt("Enter number: ", 1, 2);
 
-        if (choice == 1) return generateStrongPassword();
+        if (choice == 1) {
+            String password = generateStrongPassword();
+            System.out.println("\n" + password + "\n");
+            return password;
+        }
         return input("\nNew Password: ");
     }
 
     private static void printAllAccounts() {
         System.out.print("\n");
         for (int i = 1; i < getRecordsSize(); i++) {
-            System.out.println((i) + " " + records.get(i).get(0) + " " + records.get(i).get(1));
+            System.out.println((i) + " " + getRecordsService(i) + " " + getRecordsUsername(i));
         }
         System.out.print("\n");
     }
@@ -285,7 +298,7 @@ public class Main {
     private static void writeRecordsToCSV(String filename) {
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(filename))) {
             for (List<String> record : getAllRecords()) {
-                bw.write(record.get(0) + "," + record.get(1) + "," + record.get(2) + "," + record.get(3));
+                bw.write(record.get(0) + "," + record.get(1) + "," + record.get(2) + "," + record.get(3) + "\n");
             }
         } catch (IOException e) {
             System.out.println("\nThe file for this username was not found\n");
@@ -354,7 +367,7 @@ public class Main {
         byte[] hashedPassword = hashPassword(newPassword, salt);
         String base64StringPassword = byteArrayToBase64String(hashedPassword);
 
-        // finish // finish // finish
+        // finish
 
         setRecordsMasterPassword(base64StringPassword);
     }
@@ -792,9 +805,11 @@ public class Main {
         newRecord.add(service);
         newRecord.add(username);
         newRecord.add(encryptedPassword);
-        newRecord.add("salt");
+        newRecord.add(generateSaltString()); //finish
 
         addRecord(newRecord);
+
+        System.out.println("\nThe password has been saved\n");
     }
 
     private static int randomNum(int lowerbound, int upperbound) {
