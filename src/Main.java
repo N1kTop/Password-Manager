@@ -18,7 +18,7 @@ public class Main {
 
     private static String masterUsername = null;
     private static String masterPassword = null;
-    private static List<List<String>> records = new ArrayList<>();
+    private static final List<List<String>> records = new ArrayList<>();
     private static boolean CSVfileRequiresRewriting = false;
     private static final String SPECIAL_CHARACTERS = "/?#@-=_+!^";
     private static final String EXTRA_CHARACTERS = "(){}[]|`¬~£$&*%<>.,:;\"'\\";
@@ -35,9 +35,7 @@ public class Main {
     private static final int KEY_LENGTH = 256;         // AES key length in bits
 
 
-    public static void main(String[] args) throws Exception {
-        encryptionTest(args);
-
+    public static void main(String[] args) {
         loadDictionary();
         mainMenu();
 
@@ -116,24 +114,6 @@ public class Main {
         return new String(plainText);
     }
 
-    public static void encryptionTest(String[] args) {
-        try {
-            setMasterPassword("password");
-            String textToEncrypt = "Sensitive information";
-
-            // Encrypt the text
-            String encryptedData = encrypt(getMasterPassword(), textToEncrypt);
-            System.out.println("Encrypted Data: " + encryptedData);
-
-            // Decrypt the text
-            String decryptedText = decrypt(getMasterPassword(), encryptedData);
-            System.out.println("Decrypted Text: " + decryptedText);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
     private static void mainMenu() {
 
         while (true) {
@@ -146,9 +126,9 @@ public class Main {
             int choice = inputInt("Enter number: ", 1, 4);
 
             switch (choice) {
-                case 1 -> {logIn();}
-                case 2 -> {signUp();}
-                case 3 -> {printAboutPage();}
+                case 1 -> logIn();
+                case 2 -> signUp();
+                case 3 -> printAboutPage();
                 case 4 -> {return;}
             }
         }
@@ -177,7 +157,7 @@ public class Main {
     }
 
     private static void logOut() {
-        if (CSVfileRequiresRewriting) {
+        if (doesCSVfileRequiresRewriting()) {
             writeRecordsToCSV(getMasterUsername() + ".csv");
         }
         setMasterUsername(null);
@@ -690,18 +670,26 @@ public class Main {
             int choice = inputInt("Enter number: ", 0, 9);
 
             switch (choice) {
-                case 1 -> {passwordLength = inputInt("Password length (3-2048): ", 3, 2048);}
-                case 2 -> {lowercase = !lowercase;}
+                case 1 -> {
+                    passwordLength = inputInt("Password length (3-2048): ", 3, 2048);
+                }
+                case 2 -> {
+                    lowercase = !lowercase;
+                }
                 case 3 -> {
                     uppercase = !uppercase;
                     if (!uppercase) mustContainUppercase = false;
                 }
-                case 4 -> {digits = !digits;}
+                case 4 -> {
+                    digits = !digits;
+                }
                 case 5 -> {
                     special = !special;
                     if (!special) mustContainSpecial = false;
                 }
-                case 6 -> {extra = !extra;}
+                case 6 -> {
+                    extra = !extra;
+                }
                 case 7 -> {
                     mustContainUppercase = !mustContainUppercase;
                     if (mustContainUppercase) uppercase = true;
