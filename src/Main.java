@@ -1,3 +1,8 @@
+import javax.crypto.Cipher;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
@@ -5,13 +10,14 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.util.List;
 import java.util.*;
 
 public class Main {
 
-    private static String accountUsername = null;
-    private static String accountPassword = null;
+    private static String masterUsername = null;
+    private static String masterPassword = null;
     private static List<List<String>> records = new ArrayList<>();
     private static boolean CSVfileRequiresRewriting = false;
     private static final String SPECIAL_CHARACTERS = "/?#@-=_+!^";
@@ -22,10 +28,110 @@ public class Main {
 
     private static List<String> wordsDict;
 
-    public static void main(String[] args) {
+
+    private static final int SALT_LENGTH = 16;         // Salt length in bytes
+    private static final int IV_LENGTH = 16;           // IV length in bytes for AES
+    private static final int ITERATIONS = 65536;       // Number of PBKDF2 iterations
+    private static final int KEY_LENGTH = 256;         // AES key length in bits
+
+
+    public static void main(String[] args) throws Exception {
+        encryptionTest(args);
+
         loadDictionary();
         mainMenu();
 
+    }
+
+    // Generate a random salt
+    private static byte[] generateSalt() {
+        SecureRandom random = new SecureRandom();
+        byte[] salt = new byte[SALT_LENGTH];
+        random.nextBytes(salt);
+        return salt;
+    }
+
+    // Derive a key from the master password and salt
+    private static SecretKeySpec deriveKey(String masterPassword, byte[] salt) throws Exception {
+        PBEKeySpec spec = new PBEKeySpec(masterPassword.toCharArray(), salt, ITERATIONS, KEY_LENGTH);
+        SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+        byte[] keyBytes = factory.generateSecret(spec).getEncoded();
+        return new SecretKeySpec(keyBytes, "AES");
+    }
+
+    // Generate a random IV for AES
+    private static byte[] generateIv() {
+        byte[] iv = new byte[IV_LENGTH];
+        new SecureRandom().nextBytes(iv);
+        return iv;
+    }
+
+    // Encrypt text using the master password
+    public static String encrypt(String masterPassword, String plainText) throws Exception {
+        // Generate salt and derive key
+        byte[] salt = generateSalt();
+        SecretKeySpec key = deriveKey(masterPassword, salt);
+
+        // Generate IV and initialize cipher for encryption
+        byte[] iv = generateIv();
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(iv));
+
+        // Encrypt the text
+        byte[] encryptedText = cipher.doFinal(plainText.getBytes());
+
+        // Combine salt, IV, and encrypted text
+        byte[] encryptedData = new byte[SALT_LENGTH + IV_LENGTH + encryptedText.length];
+        System.arraycopy(salt, 0, encryptedData, 0, SALT_LENGTH);
+        System.arraycopy(iv, 0, encryptedData, SALT_LENGTH, IV_LENGTH);
+        System.arraycopy(encryptedText, 0, encryptedData, SALT_LENGTH + IV_LENGTH, encryptedText.length);
+
+        // Encode and return the combined data
+        return Base64.getEncoder().encodeToString(encryptedData);
+    }
+
+    // Decrypt text using the master password
+    public static String decrypt(String masterPassword, String encryptedData) throws Exception {
+        // Decode the Base64-encoded data
+        byte[] data = Base64.getDecoder().decode(encryptedData);
+
+        // Extract salt, IV, and encrypted text
+        byte[] salt = new byte[SALT_LENGTH];
+        byte[] iv = new byte[IV_LENGTH];
+        byte[] encryptedText = new byte[data.length - SALT_LENGTH - IV_LENGTH];
+
+        System.arraycopy(data, 0, salt, 0, SALT_LENGTH);
+        System.arraycopy(data, SALT_LENGTH, iv, 0, IV_LENGTH);
+        System.arraycopy(data, SALT_LENGTH + IV_LENGTH, encryptedText, 0, encryptedText.length);
+
+        // Derive the key using the master password and salt
+        SecretKeySpec key = deriveKey(masterPassword, salt);
+
+        // Initialize cipher for decryption
+        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(iv));
+
+        // Decrypt and return the plain text
+        byte[] plainText = cipher.doFinal(encryptedText);
+        return new String(plainText);
+    }
+
+    public static void encryptionTest(String[] args) {
+        try {
+            setMasterPassword("password");
+            String textToEncrypt = "Sensitive information";
+
+            // Encrypt the text
+            String encryptedData = encrypt(getMasterPassword(), textToEncrypt);
+            System.out.println("Encrypted Data: " + encryptedData);
+
+            // Decrypt the text
+            String decryptedText = decrypt(getMasterPassword(), encryptedData);
+            System.out.println("Decrypted Text: " + decryptedText);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private static void mainMenu() {
@@ -72,10 +178,10 @@ public class Main {
 
     private static void logOut() {
         if (CSVfileRequiresRewriting) {
-            writeRecordsToCSV(accountUsername + ".csv");
+            writeRecordsToCSV(getMasterUsername() + ".csv");
         }
-        accountUsername = null;
-        accountPassword = null;
+        setMasterUsername(null);
+        setMasterPassword(null);
     }
 
     private static void managePasswordsMenu() {
@@ -83,7 +189,7 @@ public class Main {
             printAllAccounts();
             int choice = inputInt("Enter 0 to return or type password index to manage service: ");
 
-            if (choice <= 0 || choice >= records.size()) return;
+            if (choice <= 0 || choice >= getRecordsSize()) return;
 
             menageServicePassword(choice);
 
@@ -96,9 +202,9 @@ public class Main {
     }
 
     private static void menageServicePassword(int index) {
-        System.out.println(records.get(index).get(0));
-        System.out.println(records.get(index).get(1));
-        System.out.println(records.get(index).get(3));
+        System.out.println(getRecordsService(index));
+        System.out.println(getRecordsUsername(index));
+        System.out.println(getRecordsPassword(index));
 
         System.out.println("""
                 
@@ -115,12 +221,12 @@ public class Main {
             case 1 -> copyToClipboard("finish");
             case 2 -> updatePassword(index);
             case 3 -> {
-                records.get(index).set(1, input("\nNew Username: "));
-                CSVfileRequiresRewriting = true;
+                setRecordsUsername(index, "\nNew Username: ");
+                setCSVfileRequiresRewritingTrue();
             }
             case 4 -> {
-                records.remove(index);
-                CSVfileRequiresRewriting = true;
+                removeRecord(index);
+                setCSVfileRequiresRewritingTrue();
             }
         }
     }
@@ -128,9 +234,18 @@ public class Main {
     private static void updatePassword(int index) {
 
         String newPasswordString = requestPasswordInput();
-        CSVfileRequiresRewriting = true;
-        // finish
-        records.get(index).set(2, newPasswordString);
+        setCSVfileRequiresRewritingTrue();
+        String encryptedPassword;
+
+        try {
+            encryptedPassword = encrypt(getMasterPassword(), newPasswordString);
+        }
+        catch (Exception e) {
+            System.out.println("\nSomething went wrong...\n");
+            return;
+        }
+
+        setRecordsPassword(index, encryptedPassword);
     }
 
     private static String requestPasswordInput() {
@@ -146,23 +261,19 @@ public class Main {
 
     private static void printAllAccounts() {
         System.out.print("\n");
-        for (int i = 1; i < records.size(); i++) {
+        for (int i = 1; i < getRecordsSize(); i++) {
             System.out.println((i) + " " + records.get(i).get(0) + " " + records.get(i).get(1));
         }
         System.out.print("\n");
     }
 
-    private static String getRecordsSalt(int index) {
-        return records.get(index).get(3);
-    }
-
     private static boolean loadRecords(String filename) {
-        records = new ArrayList<>();
+        initRecords();
         try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
             String line;
             while ((line = br.readLine()) != null) {
                 String[] values = line.split(",");
-                records.add(Arrays.asList(values));
+                addRecord(Arrays.asList(values));
             }
             return true;
         } catch (IOException e) {
@@ -173,7 +284,7 @@ public class Main {
 
     private static void writeRecordsToCSV(String filename) {
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(filename))) {
-            for (List<String> record : records) {
+            for (List<String> record : getAllRecords()) {
                 bw.write(record.get(0) + "," + record.get(1) + "," + record.get(2) + "," + record.get(3));
             }
         } catch (IOException e) {
@@ -211,8 +322,8 @@ public class Main {
             int choice = inputInt("Enter number: ", 1, 4);
 
             switch (choice) {
-                case 1 -> usernameChange();
-                case 2 -> passwordChange();
+                case 1 -> masterUsernameChange();
+                case 2 -> masterPasswordChange();
                 case 3 -> deleteAccount();
                 case 4 -> {return;}
             }
@@ -230,22 +341,22 @@ public class Main {
         }
     }
 
-    private static void usernameChange() {
+    private static void masterUsernameChange() {
         String newUsername = input("New Username: ");
-        records.get(0).set(1, newUsername);
+        setMasterUsername(newUsername);
 
-        renameCSVfile(accountUsername + ".csv", newUsername + ".csv");
-        CSVfileRequiresRewriting = true;
+        renameCSVfile(getMasterUsername() + ".csv", newUsername + ".csv");
+        setCSVfileRequiresRewritingTrue();
     }
 
-    private static void passwordChange() {
+    private static void masterPasswordChange() {
         String newPassword = input("New Password: ");
-        String salt = getUserSalt();
+        String salt = getRecordsMasterSalt();
         byte[] hashedPassword = hashPassword(newPassword, salt);
         String base64StringPassword = byteArrayToBase64String(hashedPassword);
 
-        records.get(0).set(1, base64StringPassword);
-        CSVfileRequiresRewriting = true;
+        setMasterPassword(base64StringPassword);
+        setCSVfileRequiresRewritingTrue();
     }
     
     private static void deleteAccount() {
@@ -254,7 +365,7 @@ public class Main {
             return;
         }
 
-        File file = new File(accountUsername + ".csv");
+        File file = new File(getMasterUsername() + ".csv");
         if (file.delete()) {
             System.out.println("Account deleted successfully.");
         } else {
@@ -269,10 +380,10 @@ public class Main {
         if (!loadRecords(username + ".csv")) return;
 
 
-        String userSalt = getUserSalt();
+        String userSalt = getRecordsMasterSalt();
 
         byte[] hashedPassword = hashPassword(inputPassword, userSalt);
-        byte[] userPassword = base64StringToByteArray(getUserPassword());
+        byte[] userPassword = base64StringToByteArray(getRecordsMasterPassword());
 
         if (comparePasswordHashes(hashedPassword, userPassword)) {
             setAccount(username, inputPassword);
@@ -306,7 +417,7 @@ public class Main {
             return;
         }
 
-        String salt = generateSalt();
+        String salt = generateSaltString();
         byte[] hashedPassword = hashPassword(password, salt);
         String base64StringPassword = byteArrayToBase64String(hashedPassword);
 
@@ -329,10 +440,38 @@ public class Main {
     }
 
     private static void setAccount(String username, String password) {
-        accountUsername = username;
-        accountPassword = password;
+        setMasterUsername(username);
+        setMasterPassword(password);
         System.out.println("\nWelcome, " + username + "\n");
     }
+
+    // Accessor Methods:
+    private static void setMasterUsername(String newUsername) {masterUsername = newUsername;}
+    private static void setMasterPassword(String newPassword) {masterPassword = newPassword;}
+    private static void setCSVfileRequiresRewritingTrue() {CSVfileRequiresRewriting = true;}
+    private static String getMasterUsername() {return masterUsername;}
+    private static String getMasterPassword() {return masterPassword;}
+    private static boolean doesCSVfileRequiresRewriting() {return CSVfileRequiresRewriting;}
+
+
+    private static List<List<String>> getAllRecords() {return records;}
+    private static List<String> getRecord(int index) {return records.get(index);}
+    private static int getRecordsSize() {return records.size();}
+    private static void addRecord(List<String> newRecord) {records.add(newRecord);}
+    private static void removeRecord(int index) {records.remove(index);}
+    private static void initRecords() {new ArrayList<>();}
+
+    private static String getRecordsService(int index) {return records.get(index).get(0);}
+    private static String getRecordsUsername(int index) {return records.get(index).get(1);}
+    private static String getRecordsPassword(int index) {return records.get(index).get(2);}
+    private static String getRecordsSalt(int index) {return records.get(index).get(3);}
+
+    private static void setRecordsUsername(int index, String newUsername) {records.get(index).set(1, newUsername);}
+    private static void setRecordsPassword(int index, String newPassword) {records.get(index).set(2, newPassword);}
+    private static void setRecordsSalt(int index, String newSalt) {records.get(index).set(3, newSalt);}
+
+    private static String getRecordsMasterSalt() {return records.get(0).get(3);}
+    private static String getRecordsMasterPassword() {return records.get(0).get(2);}
 
     private static void printWrongDetails() {
         System.out.println("\nWrong details\n");
@@ -343,14 +482,6 @@ public class Main {
         Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
         clipboard.setContents(stringSelection, null);
         System.out.println("Copied to clipboard\n");
-    }
-
-    private static String getUserSalt() {
-        return records.get(0).get(3);
-    }
-
-    private static String getUserPassword() {
-        return records.get(0).get(2);
     }
 
     private static boolean comparePasswordHashes(byte[] hash1, byte[] hash2) {
@@ -403,7 +534,7 @@ public class Main {
         return new String(b, 0, b.length, StandardCharsets.UTF_16);
     }
 
-    private static String generateSalt() {
+    private static String generateSaltString() {
         char[] chars = (LOWERCASE + UPPERCASE + DIGITS + SPECIAL_CHARACTERS).toCharArray();
         int len = chars.length;
         StringBuilder salt = new StringBuilder();
@@ -620,19 +751,28 @@ public class Main {
         }
     }
 
-    private static void newPasswordSave(String password) {
+    private static void newPasswordSave(String unencryptedPassword) {
         String service = input("Service website: ");
         String username = input("Service username: ");
-        String salt = generateSalt();
-        // finish
+        byte[] salt = generateSalt();
+        String encryptedPassword;
+
+        try {
+            encryptedPassword = encrypt(getMasterPassword(), unencryptedPassword);
+        }
+        catch (Exception e) {
+            System.out.println("\nSomething went wrong...\n");
+            return;
+        }
 
         List<String> newRecord = new ArrayList<>();
         newRecord.add(service);
         newRecord.add(username);
-        newRecord.add(password);
-        newRecord.add(salt);
-        records.add(newRecord);
-        CSVfileRequiresRewriting = true;
+        newRecord.add(encryptedPassword);
+        newRecord.add("salt");
+
+        addRecord(newRecord);
+        setCSVfileRequiresRewritingTrue();
     }
 
     private static int randomNum(int lowerbound, int upperbound) {
