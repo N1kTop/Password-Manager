@@ -218,23 +218,23 @@ public class Main {
         int choice = inputInt("Enter number: ", 1, 4);
 
         switch (choice) {
-            case 1 -> copyToClipboard("finish");
+            case 1 -> {
+                try {
+                    copyToClipboard(decrypt(getMasterPassword(), getRecordsPassword(index)));
+                }
+                catch (Exception e) {
+                    System.out.println("\nSomething went wrong...\n");
+                }
+            }
             case 2 -> updatePassword(index);
-            case 3 -> {
-                setRecordsUsername(index, "\nNew Username: ");
-                setCSVfileRequiresRewritingTrue();
-            }
-            case 4 -> {
-                removeRecord(index);
-                setCSVfileRequiresRewritingTrue();
-            }
+            case 3 -> setRecordsUsername(index, "\nNew Username: ");
+            case 4 -> removeRecord(index);
         }
     }
 
     private static void updatePassword(int index) {
 
         String newPasswordString = requestPasswordInput();
-        setCSVfileRequiresRewritingTrue();
         String encryptedPassword;
 
         try {
@@ -346,7 +346,6 @@ public class Main {
         setMasterUsername(newUsername);
 
         renameCSVfile(getMasterUsername() + ".csv", newUsername + ".csv");
-        setCSVfileRequiresRewritingTrue();
     }
 
     private static void masterPasswordChange() {
@@ -355,8 +354,9 @@ public class Main {
         byte[] hashedPassword = hashPassword(newPassword, salt);
         String base64StringPassword = byteArrayToBase64String(hashedPassword);
 
-        setMasterPassword(base64StringPassword);
-        setCSVfileRequiresRewritingTrue();
+        // finish // finish // finish
+
+        setRecordsMasterPassword(base64StringPassword);
     }
     
     private static void deleteAccount() {
@@ -448,7 +448,6 @@ public class Main {
     // Accessor Methods:
     private static void setMasterUsername(String newUsername) {masterUsername = newUsername;}
     private static void setMasterPassword(String newPassword) {masterPassword = newPassword;}
-    private static void setCSVfileRequiresRewritingTrue() {CSVfileRequiresRewriting = true;}
     private static String getMasterUsername() {return masterUsername;}
     private static String getMasterPassword() {return masterPassword;}
     private static boolean doesCSVfileRequiresRewriting() {return CSVfileRequiresRewriting;}
@@ -457,8 +456,14 @@ public class Main {
     private static List<List<String>> getAllRecords() {return records;}
     private static List<String> getRecord(int index) {return records.get(index);}
     private static int getRecordsSize() {return records.size();}
-    private static void addRecord(List<String> newRecord) {records.add(newRecord);}
-    private static void removeRecord(int index) {records.remove(index);}
+    private static void addRecord(List<String> newRecord) {
+        records.add(newRecord);
+        CSVfileRequiresRewriting = true;
+    }
+    private static void removeRecord(int index) {
+        records.remove(index);
+        CSVfileRequiresRewriting = true;
+    }
     private static void initRecords() {new ArrayList<>();}
 
     private static String getRecordsService(int index) {return records.get(index).get(0);}
@@ -466,9 +471,27 @@ public class Main {
     private static String getRecordsPassword(int index) {return records.get(index).get(2);}
     private static String getRecordsSalt(int index) {return records.get(index).get(3);}
 
-    private static void setRecordsUsername(int index, String newUsername) {records.get(index).set(1, newUsername);}
-    private static void setRecordsPassword(int index, String newPassword) {records.get(index).set(2, newPassword);}
-    private static void setRecordsSalt(int index, String newSalt) {records.get(index).set(3, newSalt);}
+    private static void setRecordsUsername(int index, String newUsername) {
+        records.get(index).set(1, newUsername);
+        CSVfileRequiresRewriting = true;
+    }
+    private static void setRecordsPassword(int index, String newPassword) {
+        records.get(index).set(2, newPassword);
+        CSVfileRequiresRewriting = true;
+    }
+    private static void setRecordsSalt(int index, String newSalt) {
+        records.get(index).set(3, newSalt);
+        CSVfileRequiresRewriting = true;
+    }
+
+    private static void setRecordsMasterPassword(String newPassword) {
+        records.get(0).set(2, newPassword);
+        CSVfileRequiresRewriting = true;
+    }
+    private static void setRecordsMasterSalt(String newSalt) {
+        records.get(0).set(3, newSalt);
+        CSVfileRequiresRewriting = true;
+    }
 
     private static String getRecordsMasterSalt() {return records.get(0).get(3);}
     private static String getRecordsMasterPassword() {return records.get(0).get(2);}
@@ -772,7 +795,6 @@ public class Main {
         newRecord.add("salt");
 
         addRecord(newRecord);
-        setCSVfileRequiresRewritingTrue();
     }
 
     private static int randomNum(int lowerbound, int upperbound) {
