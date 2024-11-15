@@ -609,7 +609,6 @@ public class Main {
             // Write the headers to the CSV file
             printWriter.println("PasswordManager," + username + "," + password + "," + salt);
 
-            System.out.println("CSV file created successfully.");
         } catch (IOException e) {
             System.out.println("An error occurred while creating the CSV file.");
             e.printStackTrace();
