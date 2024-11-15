@@ -50,7 +50,7 @@ public class Main {
     /**
      * Starting point of the program
      *
-     * @param args
+     * @param args arguments
      */
     public static void main(String[] args) {
         // load the words dictionary for generateWordBasedPassword() method:
@@ -61,7 +61,7 @@ public class Main {
 
     }
 
-    /** //finish
+    /**
      * Generate a random salt with size SALT_LENGTH
      *
      * @return generated salt as byte array
@@ -75,16 +75,24 @@ public class Main {
 
     /**
      * Derive a key from the master password and salt that will be used for encryption
+     * Uses SecretKeyFactory and factory.generateKey() method
      *
      * @param salt will be added to masterPassword to derive a key
      * @return SecretKeySpec key
-     * @throws Exception
      */
-    private static SecretKeySpec deriveKey(byte[] salt) throws Exception {
+    private static SecretKeySpec deriveKey(byte[] salt) {
         PBEKeySpec spec = new PBEKeySpec(getMasterPassword().toCharArray(), salt, ITERATIONS, KEY_LENGTH);
-        SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
-        byte[] keyBytes = factory.generateSecret(spec).getEncoded();
-        return new SecretKeySpec(keyBytes, "AES");
+        // Try to derive key:
+        try {
+            SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+            byte[] keyBytes = factory.generateSecret(spec).getEncoded();
+            return new SecretKeySpec(keyBytes, "AES");
+        }
+        // prints error and returns if getInstance() or generateSecret() methods fail
+        catch (Exception e) {
+            printErrorMessage();
+            return null;
+        }
     }
 
     /** Generate a random Initialization Vector for AES
@@ -102,10 +110,8 @@ public class Main {
      * Encrypt a text message using AES
      * The key will be derived from Master Password
      *
-     *
      * @param plainText message to be encrypted
      * @return encrypted message
-     * @throws Exception
      */
     public static String encrypt(String plainText) throws Exception {
         // Generate salt and derive key
@@ -133,11 +139,10 @@ public class Main {
     /**
      * Decrypt a text message using AES
      *
-     * @param encryptedData
+     * @param encryptedData data to be decrypted
      * @return decrypted message
-     * @throws Exception
      */
-    public static String decrypt(String encryptedData) throws Exception {
+    public static String decrypt(String encryptedData) {
         // Decode the Base64-encoded data
         byte[] data = Base64.getDecoder().decode(encryptedData);
 
@@ -153,13 +158,21 @@ public class Main {
         // Derive the key using the master password and salt
         SecretKeySpec key = deriveKey(salt);
 
-        // Initialize cipher for decryption
-        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(iv));
+        // Try decrypting the message
+        try {
+            // Initialize cipher for decryption
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(iv));
 
-        // Decrypt and return the plain text
-        byte[] plainText = cipher.doFinal(encryptedText);
-        return new String(plainText);
+            // Decrypt and return the plain text
+            byte[] plainText = cipher.doFinal(encryptedText);
+            return new String(plainText);
+        }
+        // Print error and return if Cipher.getInstance() or cipher.init() methods fail
+        catch (Exception e) {
+            printErrorMessage();
+            return null;
+        }
     }
 
     /**
@@ -480,10 +493,21 @@ public class Main {
         byte[] hashedPassword = hashPassword(newPassword, salt);
         String base64StringPassword = byteArrayToBase64String(hashedPassword);
 
-        // finish
+        // Encrypt all passwords with new key
+        encryptAllPasswords(base64StringPassword);
 
         setRecordsMasterPassword(base64StringPassword);
         System.out.println("\nPassword changed successfully\n");
+    }
+
+    /**
+     * Re-encrypts all saved passwords with new key that would be derived from new password
+     * Called when master password is changed
+     *
+     * @param newPassword new password to derive the encryption key from
+     */
+    private static void encryptAllPasswords(String newPassword) {
+        //finish
     }
 
     /**
@@ -616,7 +640,6 @@ public class Main {
 
     // Records ArrayList
     private static List<List<String>> getAllRecords() {return records;}
-    private static List<String> getRecord(int index) {return records.get(index);}
     private static int getRecordsSize() {return records.size();}
     private static void addRecord(List<String> newRecord) {
         records.add(newRecord);
@@ -749,16 +772,6 @@ public class Main {
             System.out.println("Error has occurred");
             return new byte[0]; // Return empty array on error
         }
-    }
-
-    /**
-     * Converts a byte array to a string using UTF-16 encoding
-     *
-     * @param b byte array
-     * @return resultant string
-     */
-    private static String byteToString(byte[] b) {
-        return new String(b, 0, b.length, StandardCharsets.UTF_16);
     }
 
     /**
