@@ -399,6 +399,8 @@ public class Main {
      * Menu for password generation options
      */
     private static void passwordGenMenu() {
+        // password generation mode that will decide what kind of password should be generated
+        char mode;
         while (true) {
             System.out.println("""
                     (1) Strong Password
@@ -410,12 +412,16 @@ public class Main {
             // Get user choice with input validation
             int choice = inputInt("Enter number: ", 1, 4);
 
+            // Choose corresponding mode
             switch (choice) {
-                case 1 -> {while (passwordMenu('s')) continue;}
-                case 2 -> {while (passwordMenu('c')) continue;}
-                case 3 -> {while (passwordMenu('w')) continue;}
-                case 4 -> {return;}
+                case 1 -> mode = 's';
+                case 2 -> mode = 'c';
+                case 3 -> mode = 'w';
+                default -> {return;}
             }
+            // Run password menu to generate required password until outputs false
+            // (output true means password menu should be opened again)
+            while (passwordMenu(mode)) continue;
         }
     }
 
@@ -699,10 +705,6 @@ public class Main {
 
     private static void setRecordsMasterPassword(String newPassword) {
         records.get(0).set(2, newPassword);
-        CSVfileRequiresRewriting = true;
-    }
-    private static void setRecordsMasterSalt(String newSalt) {
-        records.get(0).set(3, newSalt);
         CSVfileRequiresRewriting = true;
     }
 
@@ -998,26 +1000,18 @@ public class Main {
             int choice = inputInt("Enter number: ", 0, 9);
 
             switch (choice) {
-                case 1 -> {
-                    passwordLength = inputInt("Password length (3-2048): ", 3, 2048); // Set length
-                }
-                case 2 -> {
-                    lowercase = !lowercase; // Toggle lowercase
-                }
+                case 1 -> passwordLength = inputInt("Password length (3-2048): ", 3, 2048); // Set length
+                case 2 -> lowercase = !lowercase; // Toggle lowercase
                 case 3 -> {
                     uppercase = !uppercase; // Toggle uppercase
                     if (!uppercase) mustContainUppercase = false; // Ensure dependency
                 }
-                case 4 -> {
-                    digits = !digits; // Toggle digits
-                }
+                case 4 -> digits = !digits; // Toggle digits
                 case 5 -> {
                     special = !special; // Toggle special
                     if (!special) mustContainSpecial = false; // Ensure dependency
                 }
-                case 6 -> {
-                    extra = !extra; // Toggle extra characters
-                }
+                case 6 -> extra = !extra; // Toggle extra characters
                 case 7 -> {
                     mustContainUppercase = !mustContainUppercase;
                     if (mustContainUppercase) uppercase = true; // Ensure dependency
