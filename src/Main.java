@@ -454,16 +454,13 @@ public class Main {
      *
      * @param oldName current name of the file
      * @param newName new name for the file
+     * @return whether renaming was successful
      */
-    private static void renameCSVfile(String oldName, String newName) {
+    private static boolean renameCSVfile(String oldName, String newName) {
         File oldFile = new File(oldName);
         File newFile = new File(newName);
 
-        if (oldFile.renameTo(newFile)) {
-            System.out.println("File renamed successfully.");
-        } else {
-            System.out.println("Failed to rename the file. Make sure the file exists and is not open in another program.");
-        }
+        return oldFile.renameTo(newFile);
     }
 
     /**
@@ -471,10 +468,14 @@ public class Main {
      */
     private static void masterUsernameChange() {
         String newUsername = input("New Username: ");
-        setMasterUsername(newUsername);
-
         // Rename the associated CSV file
-        renameCSVfile(getMasterUsername() + ".csv", newUsername + ".csv");
+        if (renameCSVfile(getMasterUsername() + ".csv", newUsername + ".csv")) {
+            // if successful, set new Master username
+            setMasterUsername(newUsername);
+            System.out.println("\nAccount renamed successfully\n");
+        } else {
+            System.out.println("\nCould not rename the associated CSV file\n");
+        }
     }
 
     /**
@@ -497,10 +498,36 @@ public class Main {
      * Re-encrypts all saved passwords with new key that would be derived from new password
      * Called when master password is changed
      *
-     * @param newPassword new password to derive the encryption key from
+     * @param newHashedPassword new password to derive the encryption key from
      */
-    private static void encryptAllPasswords(String newPassword) {
-        //finish
+    private static void encryptAllPasswords(String newHashedPassword) {
+        String salt, iv, decryptedPassword, encryptedPassword;
+
+        // Iterates through records, decrypts all passwords and stores them temporarily unencrypted
+        for (int i = 1; i < getRecordsSize(); i++) {
+            salt = getRecordsSalt(i);
+            iv = getRecordsIV(i);
+            encryptedPassword = getRecordsPassword(i);
+            decryptedPassword = decrypt(encryptedPassword, salt, iv);
+            setRecordsPassword(i, decryptedPassword);
+        }
+
+        // Change the MASTER Password
+        setMasterPassword(newHashedPassword);
+
+        // Iterate through records and encrypts all unencrypted passwords with new MASTER Password
+        for (int i = 1; i < getRecordsSize(); i++) {
+            salt = getRecordsSalt(i);
+            iv = getRecordsIV(i);
+            decryptedPassword = getRecordsPassword(i);
+            try {
+                encryptedPassword = encrypt(decryptedPassword, base64StringToByteArray(salt), base64StringToByteArray(iv));
+            } catch (Exception e) {
+                printErrorMessage();
+                return;
+            }
+            setRecordsPassword(i, encryptedPassword);
+        }
     }
 
     /**
@@ -576,7 +603,7 @@ public class Main {
         }
 
         // Confirm the password
-        String repeatedPassword = input("\nRepeat Password: ");
+        String repeatedPassword = input("Repeat Password: ");
         if (!password.equals(repeatedPassword)) {
             System.out.println("The passwords do not match");
             return; // Exit if passwords do not match
@@ -603,7 +630,7 @@ public class Main {
              PrintWriter printWriter = new PrintWriter(fileWriter)) {
 
             // Write the headers to the CSV file
-            printWriter.println("PasswordManager," + username + "," + password + "," + salt);
+            printWriter.println("PasswordManager," + username + "," + password + "," + salt + ",MASTER");
 
         } catch (IOException e) {
             System.out.println("An error occurred while creating the CSV file.");
