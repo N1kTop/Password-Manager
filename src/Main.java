@@ -73,6 +73,18 @@ public class Main {
         return salt;
     }
 
+    /** Generate a random Initialization Vector for AES
+     * (random string of characters that will provide an initial state for encryption)
+     *
+     * @return Initialization Vector
+     */
+    private static byte[] generateIv() {
+        SecureRandom random = new SecureRandom();
+        byte[] iv = new byte[IV_LENGTH];
+        random.nextBytes(iv);
+        return iv;
+    }
+
     /**
      * Derive a key from the master password and salt that will be used for encryption
      * Uses SecretKeyFactory and factory.generateKey() method
@@ -95,45 +107,28 @@ public class Main {
         }
     }
 
-    /** Generate a random Initialization Vector for AES
-     * (random string of characters that will provide an initial state for encryption)
-     *
-     * @return Initialization Vector
-     */
-    private static byte[] generateIv() {
-        byte[] iv = new byte[IV_LENGTH];
-        new SecureRandom().nextBytes(iv);
-        return iv;
-    }
-
     /**
      * Encrypt a text message using AES
      * The key will be derived from Master Password
      *
      * @param plainText message to be encrypted
-     * @return encrypted message
+     * @param salt salt for encryption
+     * @param iv initialization vector for encryption
+     * @return Encrypted message
      */
-    public static String encrypt(String plainText) throws Exception {
-        // Generate salt and derive key
-        byte[] salt = generateSalt();
+    public static String encrypt(String plainText, byte[] salt, byte[] iv) throws Exception {
+        // Derive key for encryption
         SecretKeySpec key = deriveKey(salt);
 
-        // Generate IV and initialize cipher for encryption
-        byte[] iv = generateIv();
+        // Initialize cipher for encryption
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
         cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(iv));
 
         // Encrypt the text
         byte[] encryptedText = cipher.doFinal(plainText.getBytes());
 
-        // Combine salt, IV, and encrypted text
-        byte[] encryptedData = new byte[SALT_LENGTH + IV_LENGTH + encryptedText.length];
-        System.arraycopy(salt, 0, encryptedData, 0, SALT_LENGTH);
-        System.arraycopy(iv, 0, encryptedData, SALT_LENGTH, IV_LENGTH);
-        System.arraycopy(encryptedText, 0, encryptedData, SALT_LENGTH + IV_LENGTH, encryptedText.length);
-
-        // Encode and return the combined data
-        return Base64.getEncoder().encodeToString(encryptedData);
+        // Convert to string and return the data
+        return byteArrayToBase64String(encryptedText);
     }
 
     /**
@@ -142,23 +137,15 @@ public class Main {
      * @param encryptedData data to be decrypted
      * @return decrypted message
      */
-    public static String decrypt(String encryptedData) {
-        // Decode the Base64-encoded data
-        byte[] data = Base64.getDecoder().decode(encryptedData);
-
-        // Extract salt, IV, and encrypted text
-        byte[] salt = new byte[SALT_LENGTH];
-        byte[] iv = new byte[IV_LENGTH];
-        byte[] encryptedText = new byte[data.length - SALT_LENGTH - IV_LENGTH];
-
-        System.arraycopy(data, 0, salt, 0, SALT_LENGTH);
-        System.arraycopy(data, SALT_LENGTH, iv, 0, IV_LENGTH);
-        System.arraycopy(data, SALT_LENGTH + IV_LENGTH, encryptedText, 0, encryptedText.length);
+    public static String decrypt(String encryptedData, String saltString, String ivString) {
+        // Decode the Base64-encoded inputs
+        byte[] encryptedText = base64StringToByteArray(encryptedData);
+        byte[] salt = base64StringToByteArray(saltString); // Decode salt
+        byte[] iv = base64StringToByteArray(ivString); // Decode IV
 
         // Derive the key using the master password and salt
         SecretKeySpec key = deriveKey(salt);
 
-        // Try decrypting the message
         try {
             // Initialize cipher for decryption
             Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
@@ -167,9 +154,7 @@ public class Main {
             // Decrypt and return the plain text
             byte[] plainText = cipher.doFinal(encryptedText);
             return new String(plainText);
-        }
-        // Print error and return if Cipher.getInstance() or cipher.init() methods fail
-        catch (Exception e) {
+        } catch (Exception e) {
             printErrorMessage();
             return null;
         }
@@ -279,13 +264,11 @@ public class Main {
         // Display the service and username for the selected record
         System.out.println(getRecordsService(index));
         System.out.println(getRecordsUsername(index));
-        try {
-            // Attempt to decrypt and display the password
-            System.out.println(decrypt(getRecordsPassword(index)));
-        }
-        catch (Exception e) {
-            System.out.println("\n---Could not view password---\n");
-        }
+
+        // Decrypt the password
+        String password = decrypt(getRecordsPassword(index), getRecordsSalt(index), getRecordsIV(index));
+        System.out.println(password);
+
 
         System.out.println("""
                 
@@ -300,15 +283,7 @@ public class Main {
 
         // Handle user's choice
         switch (choice) {
-            case 1 -> {
-                try {
-                    // Copy the decrypted password to the clipboard
-                    copyToClipboard(decrypt(getRecordsPassword(index)));
-                }
-                catch (Exception e) {
-                    printErrorMessage();
-                }
-            }
+            case 1 -> copyToClipboard(password); // Copy decrypted password to clipboard
             case 2 -> updatePassword(index); // Change the password
             case 3 -> setRecordsUsername(index, input("\nNew Username: ")); // Update the username
             case 4 -> removeService(index); // Remove the service from records
@@ -333,18 +308,24 @@ public class Main {
 
         // Get a new password from user
         String newPasswordString = requestPasswordInput();
-        String encryptedPassword;
+        byte[] salt = generateSalt();
+        byte[] iv = generateIv();
 
+        // Try encrypting the password, encrypt() method will return array with password, salt and IV
+        String encryptedPassword;
         try {
-            // encrypt the password
-            encryptedPassword = encrypt(newPasswordString);
+            encryptedPassword = encrypt(newPasswordString, salt, iv);
         }
         catch (Exception e) {
+            // If encryption failed
             printErrorMessage();
             return;
         }
 
+
         setRecordsPassword(index, encryptedPassword);
+        setRecordsSalt(index, byteArrayToBase64String(salt));
+        setRecordsIV(index, byteArrayToBase64String(iv));
     }
 
     /**
@@ -670,6 +651,7 @@ public class Main {
     private static String getRecordsUsername(int index) {return records.get(index).get(1);}
     private static String getRecordsPassword(int index) {return records.get(index).get(2);}
     private static String getRecordsSalt(int index) {return records.get(index).get(3);}
+    private static String getRecordsIV(int index) {return records.get(index).get(4);}
 
     private static void setRecordsUsername(int index, String newUsername) {
         records.get(index).set(1, newUsername);
@@ -681,6 +663,10 @@ public class Main {
     }
     private static void setRecordsSalt(int index, String newSalt) {
         records.get(index).set(3, newSalt);
+        CSVfileRequiresRewriting = true;
+    }
+    private static void setRecordsIV(int index, String newIV) {
+        records.get(index).set(4, newIV);
         CSVfileRequiresRewriting = true;
     }
 
@@ -1124,12 +1110,16 @@ public class Main {
         String service = input("Service website: ");
         String username = input("Service username: ");
         byte[] salt = generateSalt(); // Generate unique salt for the record
+        byte[] iv = generateIv();  // Generate unique IV for the record
         String encryptedPassword;
 
+
+        // Try encrypting the password with generated salt and IV
         try {
-            encryptedPassword = encrypt(unencryptedPassword); // encrypt the password
+            encryptedPassword = encrypt(unencryptedPassword, salt, iv); // encrypt the password
         }
         catch (Exception e) {
+            // If failed to encrypt data:
             printErrorMessage();
             return;
         }
@@ -1139,7 +1129,8 @@ public class Main {
         newRecord.add(service);
         newRecord.add(username);
         newRecord.add(encryptedPassword);
-        newRecord.add(generateSaltString()); //finish
+        newRecord.add(byteArrayToBase64String(salt)); // convert to string and append
+        newRecord.add(byteArrayToBase64String(iv)); // convert to string and append
 
         addRecord(newRecord); // Append the record to all password records
 
