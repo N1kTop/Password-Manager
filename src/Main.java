@@ -14,6 +14,19 @@ import java.security.SecureRandom;
 import java.util.List;
 import java.util.*;
 
+/**
+ * Project: Password Manager
+ * This program allows you to generate custom passwords and store them in a CSV file
+ * All passwords are decrypted using a secret key
+ * Uses hashing + salt to store the MASTER Password for your account
+ * After user have entered correct MASTER password, it can be used as a key for decryption all saved passwords
+ * The program allows to change passwords and usernames anytime
+ * Date: 16/11/2024
+ *
+ * @author NikTop
+ * @version 2.0
+ *
+ */
 public class Main {
 
     // Master account credentials
@@ -656,61 +669,6 @@ public class Main {
         System.out.println("\nWelcome, " + username + "\n");
     }
 
-    // Accessor Methods:
-
-    // Master account details
-    private static void setMasterUsername(String newUsername) {masterUsername = newUsername;}
-    private static void setMasterPassword(String newPassword) {masterPassword = newPassword;}
-
-    private static String getMasterUsername() {return masterUsername;}
-    private static String getMasterPassword() {return masterPassword;}
-    private static boolean doesCSVfileRequiresRewriting() {return CSVfileRequiresRewriting;}
-
-    // Records ArrayList
-    private static List<List<String>> getAllRecords() {return records;}
-    private static int getRecordsSize() {return records.size();}
-    private static void addRecord(List<String> newRecord) {
-        records.add(newRecord);
-        CSVfileRequiresRewriting = true;
-    }
-    private static void removeRecord(int index) {
-        records.remove(index);
-        CSVfileRequiresRewriting = true;
-    }
-    private static void initRecords() {new ArrayList<>();}
-
-    // Records Items
-    private static String getRecordsService(int index) {return records.get(index).get(0);}
-    private static String getRecordsUsername(int index) {return records.get(index).get(1);}
-    private static String getRecordsPassword(int index) {return records.get(index).get(2);}
-    private static String getRecordsSalt(int index) {return records.get(index).get(3);}
-    private static String getRecordsIV(int index) {return records.get(index).get(4);}
-
-    private static void setRecordsUsername(int index, String newUsername) {
-        records.get(index).set(1, newUsername);
-        CSVfileRequiresRewriting = true;
-    }
-    private static void setRecordsPassword(int index, String newPassword) {
-        records.get(index).set(2, newPassword);
-        CSVfileRequiresRewriting = true;
-    }
-    private static void setRecordsSalt(int index, String newSalt) {
-        records.get(index).set(3, newSalt);
-        CSVfileRequiresRewriting = true;
-    }
-    private static void setRecordsIV(int index, String newIV) {
-        records.get(index).set(4, newIV);
-        CSVfileRequiresRewriting = true;
-    }
-
-    private static void setRecordsMasterPassword(String newPassword) {
-        records.get(0).set(2, newPassword);
-        CSVfileRequiresRewriting = true;
-    }
-
-    private static String getRecordsMasterSalt() {return records.get(0).get(3);}
-    private static String getRecordsMasterPassword() {return records.get(0).get(2);}
-
     /**
      * Copies a string into clipboard
      *
@@ -1176,4 +1134,61 @@ public class Main {
         Random r = new Random();
         return min + r.nextInt(max - min);
     }
+
+
+    // Accessor Methods:
+
+    // Master account details
+    private static void setMasterUsername(String newUsername) {masterUsername = newUsername;}
+    private static void setMasterPassword(String newPassword) {masterPassword = newPassword;}
+
+    private static String getMasterUsername() {return masterUsername;}
+    private static String getMasterPassword() {return masterPassword;}
+    private static boolean doesCSVfileRequiresRewriting() {return CSVfileRequiresRewriting;}
+
+    // Records ArrayList
+    private static List<List<String>> getAllRecords() {return records;}
+    private static int getRecordsSize() {return records.size();}
+    private static void addRecord(List<String> newRecord) {
+        records.add(newRecord);
+        CSVfileRequiresRewriting = true;
+    }
+    private static void removeRecord(int index) {
+        records.remove(index);
+        CSVfileRequiresRewriting = true;
+    }
+    private static void initRecords() {new ArrayList<>();}
+
+    // Records Items
+    private static String getRecordsService(int index) {return records.get(index).get(0);}
+    private static String getRecordsUsername(int index) {return records.get(index).get(1);}
+    private static String getRecordsPassword(int index) {return records.get(index).get(2);}
+    private static String getRecordsSalt(int index) {return records.get(index).get(3);}
+    private static String getRecordsIV(int index) {return records.get(index).get(4);}
+
+    private static void setRecordsUsername(int index, String newUsername) {
+        records.get(index).set(1, newUsername);
+        CSVfileRequiresRewriting = true;
+    }
+    private static void setRecordsPassword(int index, String newPassword) {
+        records.get(index).set(2, newPassword);
+        CSVfileRequiresRewriting = true;
+    }
+    private static void setRecordsSalt(int index, String newSalt) {
+        records.get(index).set(3, newSalt);
+        CSVfileRequiresRewriting = true;
+    }
+    private static void setRecordsIV(int index, String newIV) {
+        records.get(index).set(4, newIV);
+        CSVfileRequiresRewriting = true;
+    }
+
+    private static void setRecordsMasterPassword(String newPassword) {
+        records.get(0).set(2, newPassword);
+        CSVfileRequiresRewriting = true;
+    }
+
+    private static String getRecordsMasterSalt() {return records.get(0).get(3);}
+    private static String getRecordsMasterPassword() {return records.get(0).get(2);}
+
 }
