@@ -218,7 +218,13 @@ public class Main {
                 case 1 -> managePasswordsMenu();
                 case 2 -> addNewPassword();
                 case 3 -> passwordGenMenu();
-                case 4 -> settingsMenu();
+                case 4 -> {
+                    // if settingMenu() returns true, log-out
+                    if (settingsMenu()) {
+                        logOut();
+                        return;
+                    }
+                }
                 case 5 -> logOut();
             }
         }
@@ -434,9 +440,12 @@ public class Main {
 
     /**
      * Menu for account settings options
+     *
+     * @return whether the user should be logged-out from the account in case of deletion
      */
-    private static void settingsMenu() {
-        while (true) {
+    private static boolean settingsMenu() {
+        int choice = 0;
+        while (choice != 4) {
             System.out.println("""
                     (1) Change Username
                     (2) Change Password
@@ -445,15 +454,18 @@ public class Main {
                     """);
 
             // Get user choice with input validation
-            int choice = inputInt("Enter number: ", 1, 4);
+            choice = inputInt("Enter number: ", 1, 4);
 
             switch (choice) {
                 case 1 -> masterUsernameChange();
                 case 2 -> masterPasswordChange();
-                case 3 -> deleteAccount();
-                case 4 -> {return;}
+                case 3 -> {
+                    // if account was deleted successfully, return true
+                    if (deleteAccount()) return true;
+                }
             }
         }
+        return false;
     }
 
     /**
@@ -512,22 +524,25 @@ public class Main {
 
     /**
      * Delete the account by removing the associated CSV file
+     *
+     * @return whether the account was deleted successfully
      */
-    private static void deleteAccount() {
+    private static boolean deleteAccount() {
         // Confirm deletion with the user
         if (!inputBool("Are you sure, you want to delete your account? ")) {
             System.out.println("\nCancelled\n");
-            return; // Exit if user cancels
+            return false;
         }
 
         // Attempt to delete the file
         File file = new File(getMasterUsername() + ".csv");
         if (file.delete()) {
-            System.out.println("Account deleted successfully.");
-        } else {
-            System.out.println("Failed to delete the account. The CSV file might be open in another program.");
+            System.out.println("\nAccount deleted successfully\n");
+            return true;
         }
-        System.exit(0); // finish
+        // Failed to delete:
+        System.out.println("\nFailed to delete the account. The CSV file might be open in another program\n");
+        return false;
     }
 
 
