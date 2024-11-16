@@ -770,7 +770,7 @@ public class Main {
         char[] chars = (LOWERCASE + UPPERCASE + DIGITS + SPECIAL_CHARACTERS).toCharArray();
         int len = chars.length;
         StringBuilder salt = new StringBuilder();
-        for (int i = 0; i < 16; i++) {
+        for (int i = 0; i < SALT_LENGTH; i++) {
             salt.append(chars[randomNum(0, len)]);
         }
         return salt.toString();
